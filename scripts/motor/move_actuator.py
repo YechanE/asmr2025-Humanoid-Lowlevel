@@ -12,13 +12,14 @@ bus = recoil.Bus(channel=args.channel, bitrate=1000000)
 
 device_id = args.id
 
-kp = 0.2
+#0.2
+kp = 0.2    
 kd = 0.005
 
 frequency = 1.0  # motion frequency is 1 Hz
-amplitude = 1.0  # motion amplitude is 1 rad
+amplitude = 2.0  # motion amplitude is 1 rad
 
-rate = RateLimiter(frequency=200.0)
+rate = RateLimiter(frequency=200.0) 
 
 
 bus.write_position_kp(device_id, kp)
@@ -28,9 +29,20 @@ bus.write_torque_limit(device_id, 0.2)
 bus.set_mode(device_id, recoil.Mode.POSITION)
 bus.feed(device_id)
 
+##
+print("Reading initial position...")
+initial_position, _ = bus.write_read_pdo_2(device_id, 0.0, 0.0)
+if initial_position is None:
+    print("Failed to read initial position.")
+    initial_position = 0.0
+
+print(f"Initial Position = {initial_position:.3f} rad")
+
+##
+
 try:
-    while True:
-        target_angle = np.sin(2 * np.pi * frequency * time.time()) * amplitude
+    while True: 
+        target_angle = initial_position + np.sin(2 * np.pi * frequency * time.time()) * amplitude
 
         measured_position, measured_velocity = bus.write_read_pdo_2(device_id, target_angle, 0.0)
         if measured_position is not None and measured_velocity is not None:

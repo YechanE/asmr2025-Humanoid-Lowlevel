@@ -1,60 +1,54 @@
-# Copyright (c) 2025, The Berkeley Humanoid Lite Project Developers.
-
-"""
-Gamepad Controller Module for Berkeley Humanoid Lite
-
-This module implements UDP-based controllers for the Berkeley Humanoid Lite robot,
-supporting both gamepad and keyboard input devices. It handles command broadcasting
-over UDP for robot control modes and movement velocities.
-"""
-
 import threading
 from typing import Dict
-
-from inputs import get_gamepad
+import pygame
 
 
 class XInputEntry:
-    """
-    Constants for gamepad button and axis mappings.
+    # AXES PS4
+    AXIS_X_L = 0        # left stick left/right
+    AXIS_Y_L = 1        # left stick up/down
+    AXIS_X_R = 3        # right stick left/right
+    AXIS_Y_R = 4        # right stick up/down
 
-    This class defines the standard mapping for various gamepad controls,
-    including analog sticks, triggers, d-pad, and buttons.
-    """
-    AXIS_X_L = "ABS_X"
-    AXIS_Y_L = "ABS_Y"
-    AXIS_TRIGGER_L = "ABS_Z"
-    AXIS_X_R = "ABS_RX"
-    AXIS_Y_R = "ABS_RY"
-    AXIS_TRIGGER_R = "ABS_RZ"
+    # Buttons PS4
+    BTN_A = 0       # Croix
+    BTN_B = 1       # Rond
+    BTN_X = 2       # Triangle
+    BTN_Y = 3       # CarrÃ©
+    BTN_BUMPER_L = 4  # L1
+    BTN_BUMPER_R = 5  # R1
+    BTN_THUMB_L = 11  # L3
+    BTN_THUMB_R = 12  # R3
+    BTN_BACK = 8      # Share
+    BTN_START = 9     # Options
 
-    BTN_HAT_X = "ABS_HAT0X"
-    BTN_HAT_Y = "ABS_HAT0Y"
-
-    BTN_A = "BTN_SOUTH"
-    BTN_B = "BTN_EAST"
-    BTN_X = "BTN_NORTH"
-    BTN_Y = "BTN_WEST"
-    BTN_BUMPER_L = "BTN_TL"
-    BTN_BUMPER_R = "BTN_TR"
-    BTN_THUMB_L = "BTN_THUMBL"
-    BTN_THUMB_R = "BTN_THUMBR"
-    BTN_BACK = "BTN_SELECT"
-    BTN_START = "BTN_START"
+    # D-pad
+    BTN_HAT_X = "HAT_X"
+    BTN_HAT_Y = "HAT_Y"
 
 
 class Se2Gamepad:
-    def __init__(self,
-                 stick_sensitivity: float = 1.0,
-                 dead_zone: float = 0.01,
-                 ) -> None:
+    def __init__(self, stick_sensitivity=1.0, dead_zone=0.10):
         self.stick_sensitivity = stick_sensitivity
         self.dead_zone = dead_zone
 
         self._stopped = threading.Event()
         self._run_forever_thread = None
 
-        self.reset()
+        pygame.init()
+        pygame.joystick.init()
+
+        if pygame.joystick.get_count() == 0:
+            raise RuntimeError("No controller detected!")
+
+        self.js = pygame.joystick.Joystick(0)
+        self.js.init()
+
+        print("Connected:", self.js.get_name())
+
+        self.axis_states: Dict[int, float] = {}
+        self.button_states: Dict[int, int] = {}
+        self.hat_states: Dict[str, int] = {"x": 0, "y": 0}
 
         self.commands = {
             "velocity_x": 0.0,
@@ -63,69 +57,79 @@ class Se2Gamepad:
             "mode_switch": 0,
         }
 
-    def reset(self) -> None:
-        self._states = {key: 0 for key in XInputEntry.__dict__.values()}
+    def apply_deadzone(self, v: float):
+        return 0.0 if abs(v) < self.dead_zone else v
 
-    def stop(self) -> None:
+    def stop(self):
         print("Gamepad stopping...")
         self._stopped.set()
-        # self._run_forever_thread.join()
 
-    def run(self) -> None:
+    def run(self):
         self._run_forever_thread = threading.Thread(target=self.run_forever)
         self._run_forever_thread.start()
 
-    def run_forever(self) -> None:
+    def run_forever(self):
         while not self._stopped.is_set():
             self.advance()
 
-    def advance(self) -> None:
-        events = get_gamepad()
+    def advance(self):
+        pygame.event.pump()
 
-        # update all events from the joystick
-        for event in events:
-            self._states[event.code] = event.state
+        # Axes
+        for axis in range(self.js.get_numaxes()):
+            self.axis_states[axis] = self.js.get_axis(axis)
+
+        # Buttons
+        for btn in range(self.js.get_numbuttons()):
+            self.button_states[btn] = self.js.get_button(btn)
+
+        # D-pad
+        hat_x, hat_y = self.js.get_hat(0)
+        self.hat_states["x"] = hat_x
+        self.hat_states["y"] = hat_y
 
         self._update_command_buffer()
 
-    def _update_command_buffer(self) -> Dict[str, float]:
-        velocity_x = self._states.get(XInputEntry.AXIS_Y_L)
-        velocity_y = self._states.get(XInputEntry.AXIS_X_R)
-        velocity_yaw = self._states.get(XInputEntry.AXIS_X_L)
+    def _update_command_buffer(self):
 
-        if velocity_x is not None:
-            self.commands["velocity_x"] = velocity_x / -32768.0
-        if velocity_y is not None:
-            self.commands["velocity_y"] = velocity_y / -32768.0
-        if velocity_yaw is not None:
-            self.commands["velocity_yaw"] = velocity_yaw / -32768.0
+        # ---- VERSION JEUX VIDÃ‰O ----
+        vx   = self.apply_deadzone(self.axis_states.get(XInputEntry.AXIS_Y_L, 0))  # avant/arriÃ¨re stick gauche
+        vy   = self.apply_deadzone(self.axis_states.get(XInputEntry.AXIS_X_L, 0))  # gauche/droite stick gauche
+        vyaw = self.apply_deadzone(self.axis_states.get(XInputEntry.AXIS_X_R, 0))  # rotation stick droit
 
-        mode_switch = 0
+        self.commands["velocity_x"] = -vx
+        self.commands["velocity_y"] = -vy
+        self.commands["velocity_yaw"] = -vyaw
 
-        # Enter RL control mode (A + Right Bumper)
-        if self._states.get(XInputEntry.BTN_A) and self._states.get(XInputEntry.BTN_BUMPER_R):
-            mode_switch = 3
+        # Mode switching
+        mode = 0
 
-        # Enter init mode (A + Left Bumper)
-        if self._states.get(XInputEntry.BTN_A) and self._states.get(XInputEntry.BTN_BUMPER_L):
-            mode_switch = 2
+        if self.button_states.get(XInputEntry.BTN_A) and self.button_states.get(XInputEntry.BTN_BUMPER_R):
+            mode = 3
 
-        # Enter idle mode (B or Left/Right Thumbstick)
-        if self._states.get(XInputEntry.BTN_X) or self._states.get(XInputEntry.BTN_THUMB_L) or self._states.get(XInputEntry.BTN_THUMB_R):
-            mode_switch = 1
+        if self.button_states.get(XInputEntry.BTN_A) and self.button_states.get(XInputEntry.BTN_BUMPER_L):
+            mode = 2
 
-        self.commands["mode_switch"] = mode_switch
+        if self.button_states.get(XInputEntry.BTN_X) or \
+           self.button_states.get(XInputEntry.BTN_THUMB_L) or \
+           self.button_states.get(XInputEntry.BTN_THUMB_R):
+            mode = 1
+
+        self.commands["mode_switch"] = mode
 
 
 if __name__ == "__main__":
-    command_controller = Se2Gamepad()
-    command_controller.run()
+    g = Se2Gamepad()
+    g.run()
 
     try:
         while True:
-            print(f"""{command_controller.commands.get("velocity_x"):.2f}, {command_controller.commands.get("velocity_y"):.2f}, {command_controller.commands.get("velocity_yaw"):.2f}""")
-            pass
+            print(
+                f"{g.commands['velocity_x']:.2f}, "
+                f"{g.commands['velocity_y']:.2f}, "
+                f"{g.commands['velocity_yaw']:.2f}, "
+                f"mode={g.commands['mode_switch']}"
+            )
     except KeyboardInterrupt:
-        print("Keyboard interrupt")
-
-    command_controller.stop()
+        print("Stopped.")
+        g.stop()

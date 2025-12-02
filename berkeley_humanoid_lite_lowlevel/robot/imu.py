@@ -400,7 +400,7 @@ class SerialImu:
 
 
 if __name__ == "__main__":
-    imu = SerialImu(baudrate=Baudrate.BAUD_460800)
+    imu = SerialImu(baudrate=Baudrate.BAUD_9600)
 
     # change baudrate:
     # imu.unlock()

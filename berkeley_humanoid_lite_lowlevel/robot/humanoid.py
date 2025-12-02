@@ -125,7 +125,7 @@ class Humanoid:
 
         self.joint_kp[:] = 20
         self.joint_kd[:] = 2
-        self.torque_limit[:] = 4
+        self.torque_limit[:] = 1
 
         for i, entry in enumerate(self.joints):
             bus, device_id, joint_name = entry
