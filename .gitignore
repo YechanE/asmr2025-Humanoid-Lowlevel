@@ -177,7 +177,7 @@ cython_debug/
 .vscode/
 
 # Model checkpoints and config files
-checkpoints/*
-!checkpoints/.gitkeep
-configs/*
-!configs/.gitkeep
+#checkpoints/*
+#!checkpoints/.gitkeep
+#configs/*
+#!configs/.gitkeep
