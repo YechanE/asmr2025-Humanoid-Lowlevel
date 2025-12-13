@@ -24,6 +24,7 @@ classifiers = [
 ]
 dependencies = [
     "omegaconf>=2.3.0",
+    "pandas>=2.3.3",
     "psutil",
     "pynput>=1.8.1",
     "pyyaml>=6.0.3",
