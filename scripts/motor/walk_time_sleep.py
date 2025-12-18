@@ -37,11 +37,11 @@ def get_bus(device_id):
 # 2. 보행 모션 파라미터 (User Provided)
 # ============================================
 WALK_AMPLITUDES = {
-    LEFT_HIP_ROLL: 0.0, LEFT_HIP_YAW: 0.0, LEFT_HIP_PITCH: 0.6,
-    LEFT_KNEE_PITCH: 0.6, LEFT_ANKLE_PITCH: 0.2, LEFT_ANKLE_ROLL: 0.0,
+    LEFT_HIP_ROLL: 0.0, LEFT_HIP_YAW: 0.0, LEFT_HIP_PITCH: 0.0,
+    LEFT_KNEE_PITCH: 0.0, LEFT_ANKLE_PITCH: 0.4, LEFT_ANKLE_ROLL: 0.0,
     
-    RIGHT_HIP_ROLL: 0.0, RIGHT_HIP_YAW: 0.0, RIGHT_HIP_PITCH: 0.6,
-    RIGHT_KNEE_PITCH: 0.6, RIGHT_ANKLE_PITCH: 0.2, RIGHT_ANKLE_ROLL: 0.0,
+    RIGHT_HIP_ROLL: 0.0, RIGHT_HIP_YAW: 0.0, RIGHT_HIP_PITCH: 0.0,
+    RIGHT_KNEE_PITCH: 0.0, RIGHT_ANKLE_PITCH: 0.4, RIGHT_ANKLE_ROLL: 0.0,
 }
 
 PHASE_OFFSETS = {
@@ -63,8 +63,8 @@ DIRECTION = {
 }
 
 # Control Parameters
-kp = 1
-kd = 0.015
+kp = 0.6
+kd = 0.01
 walk_frequency = 1.0  # 1 Hz
 
 # Soft Start Parameters (안전 장치)
@@ -83,7 +83,7 @@ for device_id in left_leg_ids:
     time.sleep(0.01)
     bus_left.write_position_kd(device_id, kd)
     time.sleep(0.01)
-    bus_left.write_torque_limit(device_id, 2.0)
+    bus_left.write_torque_limit(device_id, 1.5)
     time.sleep(0.01)
     bus_left.set_mode(device_id, recoil.Mode.POSITION)
     time.sleep(0.01)
@@ -95,7 +95,7 @@ for device_id in right_leg_ids:
     time.sleep(0.01)
     bus_right.write_position_kd(device_id, kd)
     time.sleep(0.01)
-    bus_right.write_torque_limit(device_id, 2.0)
+    bus_right.write_torque_limit(device_id, 1.5)
     time.sleep(0.01)
     bus_right.set_mode(device_id, recoil.Mode.POSITION)
     time.sleep(0.01)
@@ -122,7 +122,7 @@ print("Starting Walking Motion (Soft Start Active)")
 print(" Amplitude will ramp up over 5 seconds.")
 print(" Press Ctrl+C to Stop.")
 print("="*50)
-
+time.sleep(0.5) # 통신 안정화 대기
 # ============================================
 # 4. 메인 제어 루프
 # ============================================
@@ -144,9 +144,9 @@ try:
             # 1. 파라미터 가져오기
             bus = get_bus(device_id)
             init_pos = initial_positions[device_id]
-            amp = WALK_AMPLITUDES.get(device_id, 0.0)
-            phi = PHASE_OFFSETS.get(device_id, 0.0)
-            direction = DIRECTION.get(device_id, 1)
+            amp = WALK_AMPLITUDES.get(device_id)
+            phi = PHASE_OFFSETS.get(device_id)
+            direction = DIRECTION.get(device_id)
 
             # 2. 목표 위치 계산
             # Target = Init + (Amp * Ramp * sin(wt + phi) * Dir)

@@ -11,21 +11,21 @@ args = recoil.util.get_args()
 bus = recoil.Bus(channel=args.channel, bitrate=1000000)
 
 # 동시에 구동할 CAN ID 목록
-device_ids = [1,3,5,7,11,13]
+device_ids = [5,7,11]
 
 # gains
-kp = 0.2
-kd = 0.005
+kp = 0.6
+kd = 0.01
 
 frequency = 1.0   # motion frequency is 1 Hz
-amplitude = 1.0   # motion amplitude is 1 rad
+amplitude = 1.5   # motion amplitude is 1 rad
 
 rate = RateLimiter(frequency=200.0)
 # 각 모터별 제어 파라미터/모드 설정
 for device_id in device_ids:
     bus.write_position_kp(device_id, kp)
     bus.write_position_kd(device_id, kd)
-    bus.write_torque_limit(device_id, 1)
+    bus.write_torque_limit(device_id, 1.5)
 
     bus.set_mode(device_id, recoil.Mode.POSITION)
     bus.feed(device_id)

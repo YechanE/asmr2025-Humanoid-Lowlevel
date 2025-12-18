@@ -37,11 +37,11 @@ def get_bus(device_id):
 # 2. 보행 모션 파라미터 (User Provided)
 # ============================================
 WALK_AMPLITUDES = {
-    LEFT_HIP_ROLL: 0.0, LEFT_HIP_YAW: 0.0, LEFT_HIP_PITCH: 0.6,
-    LEFT_KNEE_PITCH: 0.6, LEFT_ANKLE_PITCH: 0.2, LEFT_ANKLE_ROLL: 0.0,
+    LEFT_HIP_ROLL: 0.0, LEFT_HIP_YAW: 0.0, LEFT_HIP_PITCH: 1.6,
+    LEFT_KNEE_PITCH: 1.6, LEFT_ANKLE_PITCH: 0.8, LEFT_ANKLE_ROLL: 0.0,
     
-    RIGHT_HIP_ROLL: 0.0, RIGHT_HIP_YAW: 0.0, RIGHT_HIP_PITCH: 0.6,
-    RIGHT_KNEE_PITCH: 0.6, RIGHT_ANKLE_PITCH: 0.2, RIGHT_ANKLE_ROLL: 0.0,
+    RIGHT_HIP_ROLL: 0.0, RIGHT_HIP_YAW: 0.0, RIGHT_HIP_PITCH: 1.6,
+    RIGHT_KNEE_PITCH: 1.6, RIGHT_ANKLE_PITCH: 0.8, RIGHT_ANKLE_ROLL: 0.0,
 }
 
 PHASE_OFFSETS = {
@@ -56,21 +56,21 @@ PHASE_OFFSETS = {
 
 DIRECTION = {
     LEFT_HIP_ROLL: 1, LEFT_HIP_YAW: 1, LEFT_HIP_PITCH: 1,
-    LEFT_KNEE_PITCH: 1, LEFT_ANKLE_PITCH: -1, LEFT_ANKLE_ROLL: 1,
+    LEFT_KNEE_PITCH: -1, LEFT_ANKLE_PITCH: -1, LEFT_ANKLE_ROLL: 1,
     
     RIGHT_HIP_ROLL: -1, RIGHT_HIP_YAW: -1, RIGHT_HIP_PITCH: -1,
-    RIGHT_KNEE_PITCH: -1, RIGHT_ANKLE_PITCH: 1, RIGHT_ANKLE_ROLL: -1,
+    RIGHT_KNEE_PITCH: 1, RIGHT_ANKLE_PITCH: 1, RIGHT_ANKLE_ROLL: -1,
 }
 
 # Control Parameters
-kp = 1
-kd = 0.015
+kp = 0.2
+kd = 0.01
 walk_frequency = 1.0  # 1 Hz
 
 # Soft Start Parameters (안전 장치)
 ramp_duration = 5.0   # 5초 동안 서서히 진폭 증가
 
-rate = RateLimiter(frequency=200.0)
+rate = RateLimiter(frequency=60.0)
 
 # ============================================
 # 3. 모터 초기화 및 초기 위치 읽기
@@ -80,42 +80,50 @@ print("Initializing motors...")
 # Configure Left Leg
 for device_id in left_leg_ids:
     bus_left.write_position_kp(device_id, kp)
-    time.sleep(0.01)
     bus_left.write_position_kd(device_id, kd)
-    time.sleep(0.01)
-    bus_left.write_torque_limit(device_id, 2.0)
-    time.sleep(0.01)
+    bus_left.write_torque_limit(device_id, 0.4)
     bus_left.set_mode(device_id, recoil.Mode.POSITION)
-    time.sleep(0.01)
     bus_left.feed(device_id)
 
 # Configure Right Leg
 for device_id in right_leg_ids:
     bus_right.write_position_kp(device_id, kp)
-    time.sleep(0.01)
     bus_right.write_position_kd(device_id, kd)
-    time.sleep(0.01)
-    bus_right.write_torque_limit(device_id, 2.0)
-    time.sleep(0.01)
+    bus_right.write_torque_limit(device_id, 0.4)
     bus_right.set_mode(device_id, recoil.Mode.POSITION)
-    time.sleep(0.01)
     bus_right.feed(device_id)
 
 # Read Initial Positions
 initial_positions = {}
 print("\nReading initial positions (Homing)...")
-time.sleep(0.5) # 통신 안정화 대기
+time.sleep(0.6) # 통신 안정화 대기
 
 for device_id in all_ids:
     bus = get_bus(device_id)
-    pos, _ = bus.write_read_pdo_2(device_id, 0.0, 0.0)
+    #pos, _ = bus.receive_pdo_2(device_id)
+    pos, _ = bus.write_read_pdo_2(device_id,0.0,0.0)
+
+    time.sleep(0.01)
+
     
     if pos is None:
         print(f"[WARNING] Failed ID {device_id}. Assuming 0.0.")
         pos = 0.0
+
     
     initial_positions[device_id] = pos
     print(f"ID {device_id:2d}: Init Pos = {pos:.3f} rad")
+
+# print("\n" + "="*50)
+# for device_id in all_ids:
+#     bus = get_bus(device_id)
+#     #pos, _ = bus.receive_pdo_2(device_id)
+#     pos, _ = bus.write_read_pdo_2(device_id,0.0,0.0)
+
+#     time.sleep(0.01)
+    
+#     if pos is None:
+#         print(f"[WARNING] Failed ID {device_id}. Assuming 0.0.")
 
 print("\n" + "="*50)
 print("Starting Walking Motion (Soft Start Active)")
@@ -123,6 +131,9 @@ print(" Amplitude will ramp up over 5 seconds.")
 print(" Press Ctrl+C to Stop.")
 print("="*50)
 
+time.sleep(0.1)
+
+print(" Read initial pose complete.")
 # ============================================
 # 4. 메인 제어 루프
 # ============================================
@@ -154,7 +165,7 @@ try:
             offset = amp * ramp_scale * sine_val * direction
             
             target_angle = init_pos + offset
-            print(f"ID {device_id} | Target Angle: {target_angle:.3f} rad")
+            #print(f"ID {device_id} | Target Angle: {target_angle:.3f} rad")
 
             # 3. 명령 전송
             measured_pos, measured_vel = bus.write_read_pdo_2(
