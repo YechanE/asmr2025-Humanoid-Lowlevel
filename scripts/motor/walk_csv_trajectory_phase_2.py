@@ -12,7 +12,7 @@ import berkeley_humanoid_lite_lowlevel.recoil as recoil
 # 0. User Config
 # ============================================================
 
-CSV_PATH = "joints_timeseries_slow.csv"
+CSV_PATH = "joints_timeseries_fast2.csv"
 
 CONTROL_FREQUENCY = 60.0  # Hz
 rate = RateLimiter(frequency=CONTROL_FREQUENCY)
@@ -35,7 +35,7 @@ ENABLE_WALK_PHASE = True
 WALK_MODE = "loop"
 
 # CSV 한 주기를 몇 초에 재생할지 (속도 조절 핵심 파라미터)
-GAIT_CYCLE_SECONDS = 8.0  # 예: 1.0초에 1주기, 2.0초에 1주기(더 느림)
+GAIT_CYCLE_SECONDS = 16.0  # 예: 1.0초에 1주기, 2.0초에 1주기(더 느림)
 
 # loop 경계에서 튀는 걸 줄이기 위한 cross-fade (초)
 LOOP_CROSSFADE_SEC = 0.08
